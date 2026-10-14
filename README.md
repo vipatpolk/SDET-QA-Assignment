@@ -29,6 +29,9 @@ SDET-QA-Assignment/
 ├── .agents/skills/                          # Multi-agent specialized skills & best practices
 │   ├── cucumber-bdd-best-practices/         # BDD & Gherkin authoring skill
 │   └── api-testing-best-practices/          # REST Assured & API testing strategy skill
+├── .github/workflows/                       # GitHub Actions CI/CD workflows
+│   ├── ci.yml                               # Production CI test pipeline (Resolved Part 3)
+│   └── ci-broken.yml                        # Starter broken pipeline (Part 3 analysis target)
 ├── .mvn/wrapper/                            # Maven wrapper configuration
 ├── src/
 │   ├── main/
@@ -112,10 +115,7 @@ This project contains comprehensive API test automation for the GoREST v2 Users 
 
 1. **Authentication Token**: GoREST requires a Bearer token for write operations (POST, PUT, DELETE).
 2. **Local Setup via `.env`**:
-   - Copy `.env.example` to `.env`:
-     ```bash
-     cp .env.example .env
-     ```
+   - Copy `.env.example` to `.env`:\n     ```bash\n     cp .env.example .env\n     ```
    - Populate `GOREST_API_TOKEN`:
      ```env
      GOREST_API_TOKEN=your_token_here
@@ -246,3 +246,65 @@ Inspect Playwright trace files:
 ```bash
 .\mvnw.cmd exec:java -Dexec.args="show-trace trace.zip"
 ```
+
+---
+
+## 🔄 CI/CD Pipeline (GitHub Actions — Part 3)
+
+The repository includes CI/CD pipeline automation under `.github/workflows/`. As part of Part 3 of the assignment, the broken starter workflow ([`.github/workflows/ci-broken.yml`](.github/workflows/ci-broken.yml)) was thoroughly audited, corrected, and implemented as a production-ready pipeline in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+### 🔍 Issues Found in `ci-broken.yml` & Their Resolutions
+
+| # | Pipeline Component | Issue Found in `ci-broken.yml` | Technical Impact | Resolution Implemented in `ci.yml` |
+| :-: | :--- | :--- | :--- | :--- |
+| **1** | **Repository Checkout** | Missing `actions/checkout@v4` step completely. | Runner begins with an empty workspace; Maven fails immediately with `no POM in this directory`. | Added `actions/checkout@v4` as step 1 in all jobs. |
+| **2** | **Java Version** | Specified `java-version: '8'`. | Project requires Java 17 (`pom.xml`). Playwright 1.50, Serenity 4.2, and JUnit 5 fail bytecode compilation on Java 8. | Upgraded to `java-version: '21'` (`temurin`). |
+| **3** | **Playwright Dependencies** | No browser binaries or Linux shared libraries installed. | UI test runs on Ubuntu crash with `PlaywrightException: Host system is missing dependencies to run browsers`. | Added `./mvnw exec:java -Dexec.args="install --with-deps"`. |
+| **4** | **API Credentials** | `GOREST_API_TOKEN` secret not passed to job environment. | Mutating API requests fail with `HTTP 401 Unauthorized` or fail-fast `IllegalStateException`. | Injected `GOREST_API_TOKEN: ${{ secrets.GOREST_API_TOKEN }}` with validation step. |
+| **5** | **Failure Suppression** | `mvn clean test \|\| true` | Swallows errors and converts test failures into false greens, undermining the CI quality gate. | Removed `\|\| true` and enabled strict exit-code verification. |
+| **6** | **Test Scoping** | Both steps ran `mvn clean test` without `-Dcucumber.filter.tags`. | Full test suite ran redundantly twice (UI tests in API step and vice versa). | Added `-Dcucumber.filter.tags=@ui` and `-Dcucumber.filter.tags=@gorest`. |
+| **7** | **Report Deletion** | Consecutive `mvn clean test` steps. | Second step's `clean` wiped the `target/` directory and erased UI test outcomes. | Split into two isolated parallel jobs: `ui-tests` and `api-tests`. |
+| **8** | **Serenity Aggregation** | Invoked `mvn test` instead of `mvn verify`. | `serenity-maven-plugin:aggregate` binds to `post-integration-test`. Living doc reports were never built. | Executed `./mvnw clean verify` to automatically aggregate Serenity HTML reports. |
+| **9** | **Artifact Archival** | No artifact upload steps. | Test reports, traces, and screenshots were discarded when the runner terminated. | Added `actions/upload-artifact@v4` with `if: always()` for Serenity and Cucumber reports. |
+| **10** | **Dependency Caching** | No Maven dependency cache. | Re-downloaded all dependencies from Maven Central on every push/PR run. | Configured `cache: 'maven'` in `actions/setup-java`. |
+| **11** | **Maven Wrapper Portability**| Used host `mvn`. | Execution depended on runner-installed Maven version, risking discrepancies. | Standardized on `./mvnw` with `chmod +x mvnw`. |
+| **12** | **Timeout & Dispatch** | Missing timeouts and manual triggers. | Jobs could hang indefinitely (up to 6 hrs); cannot run ad-hoc tests from GitHub UI. | Set `timeout-minutes` and added `workflow_dispatch` with custom tag input. |
+
+---
+
+### ⚙️ Production CI Pipeline Architecture (`.github/workflows/ci.yml`)
+
+The resolved workflow leverages **two parallel jobs** for speed, isolation, and clarity:
+
+```mermaid
+flowchart TD
+    Trigger([Trigger: Push / PR to main / Manual Dispatch]) --> UIJob[Job 1: ui-tests]
+    Trigger --> APIJob[Job 2: api-tests]
+
+    subgraph UIJob [Job 1: UI Automation - Playwright]
+        A1[actions/checkout@v4] --> A2[setup-java JDK 21 + Maven Cache]
+        A2 --> A3[chmod +x mvnw]
+        A3 --> A4[Install Playwright Browsers & Deps]
+        A4 --> A5[./mvnw clean verify -Dcucumber.filter.tags=@ui]
+        A5 --> A6[Upload Serenity UI Living Docs]
+        A6 --> A7[Upload Cucumber UI Reports]
+    end
+
+    subgraph APIJob [Job 2: API Automation - REST Assured]
+        B1[actions/checkout@v4] --> B2[setup-java JDK 21 + Maven Cache]
+        B2 --> B3[chmod +x mvnw]
+        B3 --> B4[Validate GOREST_API_TOKEN Secret]
+        B4 --> B5[./mvnw clean verify -Dcucumber.filter.tags=@gorest]
+        B5 --> B6[Upload Serenity API Living Docs]
+        B6 --> B7[Upload Cucumber API Reports]
+    end
+```
+
+### 🔐 Configuring GitHub Actions Secrets
+
+To run authenticated API tests in GitHub Actions:
+1. Navigate to **Repository Settings** ➔ **Secrets and variables** ➔ **Actions**.
+2. Click **New repository secret**.
+3. Set **Name**: `GOREST_API_TOKEN`.
+4. Set **Value**: Your GoREST Bearer Token (obtainable from [gorest.co.in](https://gorest.co.in/)).
+5. Click **Add secret**.
