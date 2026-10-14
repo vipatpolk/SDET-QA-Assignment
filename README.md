@@ -9,15 +9,15 @@ Automation test framework featuring **Playwright Java** (UI testing), **REST Ass
 - **Option A (Containerized — Zero Local Setup Required)**:
   - [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/) v2+
 - **Option B (Local Host Setup)**:
-  - **Java**: JDK 17 or newer (e.g., OpenJDK 17/21/26)
+  - **Java**: JDK 17 or newer (Tested on OpenJDK 17, 21, 25, and 26)
   - **Build Tool**: Maven 3.9+ (A Maven Wrapper `mvnw` / `mvnw.cmd` is included)
 - **Frameworks & Libraries**:
   - [Cucumber BDD](https://cucumber.io/) — Behavior-Driven Development with Gherkin
   - [Playwright for Java](https://playwright.dev/java/) — Fast and reliable end-to-end web testing
   - [Serenity BDD](https://serenity-bdd.info/) — Living documentation and rich test execution reporting
   - [REST Assured & SerenityRest](https://rest-assured.io/) — RESTful API testing & validation with automated reporting
-  - [Jackson Databind](https://github.com/FasterXML/jackson) — JSON serialization & deserialization
-  - [Hamcrest](http://hamcrest.org/) — Matchers for API assertions
+  - [Jackson Databind](https://github.com/FasterXML/jackson) — Strongly-typed JSON serialization & deserialization (POJOs)
+  - [Hamcrest](http://hamcrest.org/) — Flexible matchers for API assertions
   - [JUnit 5 Jupiter / Platform](https://junit.org/junit5/) — Modern test runner and suite execution
 
 ---
@@ -26,13 +26,16 @@ Automation test framework featuring **Playwright Java** (UI testing), **REST Ass
 
 ```text
 SDET-QA-Assignment/
+├── .agents/skills/                          # Multi-agent specialized skills & best practices
+│   ├── cucumber-bdd-best-practices/         # BDD & Gherkin authoring skill
+│   └── api-testing-best-practices/          # REST Assured & API testing strategy skill
 ├── .mvn/wrapper/                            # Maven wrapper configuration
 ├── src/
 │   ├── main/
 │   │   ├── java/
 │   │   │   └── com/atait/assignment/
 │   │   │       ├── config/
-│   │   │       │   └── ConfigurationManager.java # Centralized config & property loader
+│   │   │       │   └── ConfigurationManager.java # Centralized config & property loader (.env & system vars)
 │   │   │       ├── context/
 │   │   │       │   └── ScenarioContext.java      # ThreadLocal cross-step data sharing
 │   │   │       ├── driver/
@@ -50,16 +53,26 @@ SDET-QA-Assignment/
 │   │   │               ├── NavigationDrawerComponent.java # Sidebar drawer
 │   │   │               └── FooterComponent.java           # Social media links
 │   │   └── resources/
-│   │       └── config.properties                 # Environment configuration (base URL, timeouts)
+│   │       └── config.properties                 # Environment configuration (base URL, timeouts, api.base.url)
 │   └── test/
 │       ├── java/
 │       │   └── com/atait/assignment/
+│       │       ├── api/                          # Reusable API Service Layer (GoREST)
+│       │       │   ├── client/
+│       │       │   │   └── GoRestClient.java     # Singleton REST client with retry & error logging
+│       │       │   ├── models/                   # Strongly typed POJOs
+│       │       │   │   ├── UserRequest.java      # User creation & update request POJO
+│       │       │   │   ├── UserResponse.java     # User response POJO
+│       │       │   │   ├── ValidationErrorItem.java # Validation error detail POJO
+│       │       │   │   └── ApiErrorResponse.java # Generic error POJO
+│       │       │   └── utils/
+│       │       │       └── GoRestTestDataGenerator.java # Dynamic collision-free data generator
 │       │       └── bdd/
 │       │           ├── CucumberTestRunner.java   # JUnit 5 @Suite runner with Serenity reporter
 │       │           ├── hooks/
-│       │           │   └── Hooks.java            # Scenario lifecycle hooks & failure screenshot
+│       │           │   └── Hooks.java            # Lifecycle hooks (screenshots & API teardown)
 │       │           └── stepdefinitions/
-│       │               ├── ApiStepDefinitions.java       # SerenityRest API steps
+│       │               ├── GoRestApiStepDefinitions.java # GoREST Users API step definitions
 │       │               ├── AuthStepDefinitions.java       # Authentication & route defense
 │       │               ├── CatalogStepDefinitions.java    # Catalog fidelity & sorting
 │       │               ├── CartStepDefinitions.java       # Cart badge & item manipulation
@@ -74,19 +87,66 @@ SDET-QA-Assignment/
 │           │   ├── ui-tests/
 │           │   │   └── Part_1_Playwright_for_Java_project.feature # 28 Option B UI Scenarios
 │           │   └── api-tests/
-│           │       └── Part_2_Java_and_REST_Assured_project.feature # API Test Scenarios
+│           │       └── Part_2_Java_and_REST_Assured_project.feature # 12 Scenarios (31 permutations) GoREST API
 │           ├── junit-platform.properties         # Cucumber reporting & glue settings
 │           └── serenity.conf                     # Serenity BDD runtime configuration
 ├── Dockerfile                              # Container definition (Playwright Java noble base)
 ├── docker-compose.yml                      # Docker Compose service definition
 ├── docker-entrypoint.sh                    # Container entrypoint script
 ├── .dockerignore                           # Docker build ignore rules
+├── .env.example                            # Example environment variables template
 ├── mvnw                                    # Maven wrapper script (macOS/Linux)
 ├── mvnw.cmd                                # Maven wrapper script (Windows)
 ├── pom.xml                                 # Dependencies & build configuration
 ├── AGENTS.md                               # Canonical agent development guide
 └── README.md
 ```
+
+---
+
+## 🚀 REST API Testing (GoREST Users API)
+
+This project contains comprehensive API test automation for the GoREST v2 Users API (`https://gorest.co.in/public/v2/users`) authored in [`Part_2_Java_and_REST_Assured_project.feature`](src/test/resources/features/api-tests/Part_2_Java_and_REST_Assured_project.feature).
+
+### 🔑 Authentication & Environment Setup
+
+1. **Authentication Token**: GoREST requires a Bearer token for write operations (POST, PUT, DELETE).
+2. **Local Setup via `.env`**:
+   - Copy `.env.example` to `.env`:
+     ```bash
+     cp .env.example .env
+     ```
+   - Populate `GOREST_API_TOKEN`:
+     ```env
+     GOREST_API_TOKEN=your_token_here
+     ```
+   - `.env` is automatically ignored in Git by [`.gitignore`](.gitignore).
+3. **Environment Variable Override**:
+   Alternatively, set the system environment variable:
+   - **Windows (PowerShell)**: `$env:GOREST_API_TOKEN="your_token_here"`
+   - **macOS / Linux**: `export GOREST_API_TOKEN="your_token_here"`
+4. **Fail-Fast Protection**: If the token is missing during write operations, `ConfigurationManager` fails immediately with an informative exception rather than silently skipping tests.
+
+### 🛡️ Test Safety & Lifecycle Management (Build up > Test > Tear down)
+- **Live Service Discipline**: GoREST is a public shared live service. Tests **never mutate or delete unowned records**.
+- **Collision Avoidance**: [`GoRestTestDataGenerator`](src/test/java/com/atait/assignment/api/utils/GoRestTestDataGenerator.java) creates uniquely timestamped and randomized test users.
+- **Guaranteed Cleanup**: Every test records created user IDs in [`ScenarioContext`](src/main/java/com/atait/assignment/context/ScenarioContext.java). The Cucumber hook `@After("@api or @gorest")` in [`Hooks.java`](src/test/java/com/atait/assignment/bdd/hooks/Hooks.java) automatically deletes all test-created users, even if an assertion fails midway.
+- **Rate Limit Resilience**: [`GoRestClient`](src/test/java/com/atait/assignment/api/client/GoRestClient.java) implements exponential backoff retry when receiving HTTP `429 Too Many Requests`.
+
+### 🧪 Executing the API Test Suite
+
+- **Run GoREST API tests via Maven Wrapper (Windows)**:
+  ```powershell
+  .\mvnw.cmd test "-Dcucumber.filter.tags=@gorest"
+  ```
+- **Run GoREST API tests via Maven Wrapper (macOS / Linux)**:
+  ```bash
+  ./mvnw test -Dcucumber.filter.tags="@gorest"
+  ```
+- **Run GoREST API tests in Docker**:
+  ```bash
+  docker compose run --rm -e CUCUMBER_FILTER_TAGS="@gorest" tests
+  ```
 
 ---
 
@@ -98,24 +158,17 @@ You can run the entire test automation suite without installing Java, Maven, or 
 ```bash
 docker compose run --rm tests
 ```
-*Note: Test reports and failure screenshots are automatically synchronized to your host `./target/site/serenity/` directory via volume mapping.*
 
-### 2. Filter Scenarios by Cucumber Tag
-Filter tests using an environment variable or command arguments:
+### 2. Filter Scenarios by Cucumber Tag in Docker
 ```bash
-# Via Environment Variable
-docker compose run --rm -e CUCUMBER_FILTER_TAGS="@smoke" tests
+# Run UI Smoke tests
+docker compose run --rm -e CUCUMBER_FILTER_TAGS="@smoke and @ui" tests
 
-# Via Command Line Argument
-docker compose run --rm tests -Dcucumber.filter.tags="@smoke"
+# Run GoREST API tests
+docker compose run --rm -e CUCUMBER_FILTER_TAGS="@gorest" tests
 ```
 
-### 3. Override Target Environment Base URL
-```bash
-docker compose run --rm -e APP_BASE_URL="https://staging.saucedemo.com" tests
-```
-
-### 4. Clean Build & Cached Dependencies
+### 3. Clean Build & Cached Dependencies
 ```bash
 # Rebuild the Docker image
 docker compose build
@@ -153,9 +206,9 @@ The Maven `verify` lifecycle automatically compiles the project, runs tests via 
   - Windows: `.\mvnw.cmd clean verify`
   - Unix: `./mvnw clean verify`
 
-- **Filter by Tag on `verify` (e.g. `@smoke`)**:
-  - Windows (PowerShell): `.\mvnw.cmd verify "-Dcucumber.filter.tags=@smoke"`
-  - Unix (Bash): `./mvnw verify -Dcucumber.filter.tags="@smoke"`
+- **Filter by Tag on `verify` (e.g. `@gorest` or `@smoke`)**:
+  - Windows (PowerShell): `.\mvnw.cmd verify "-Dcucumber.filter.tags=@gorest"`
+  - Unix (Bash): `./mvnw verify -Dcucumber.filter.tags="@gorest"`
 
 ---
 

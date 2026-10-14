@@ -9,6 +9,12 @@ buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 
+# Environment & Credentials
+.env
+.env.local
+.env.*.local
+*.env
+
 # Playwright
 test-results/
 playwright-report/
@@ -23,8 +29,9 @@ allure-results/
 allure-report/
 .allure/
 
-# IntelliJ IDEA
+# IntelliJ IDEA & AI Assistant internal state
 .idea/
+.gemini/
 out/
 *.iml
 *.iws

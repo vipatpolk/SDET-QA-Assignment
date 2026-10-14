@@ -1,5 +1,6 @@
 package com.atait.assignment.bdd.hooks;
 
+import com.atait.assignment.api.client.GoRestClient;
 import com.atait.assignment.context.ScenarioContext;
 import com.atait.assignment.driver.PlaywrightManager;
 import com.microsoft.playwright.Page;
@@ -13,6 +14,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 
 public class Hooks {
 
@@ -37,6 +39,28 @@ public class Hooks {
             screenshotTaken.remove();
             ScenarioContext.clear();
             PlaywrightManager.cleanUp();
+        }
+    }
+
+    /**
+     * Automatic teardown hook for API scenarios.
+     * Guarantees all test user records created during the scenario are safely cleaned up,
+     * even if intermediate steps failed or threw an assertion error.
+     */
+    @After("@api or @gorest")
+    public void tearDownApi(Scenario scenario) {
+        try {
+            List<Long> trackedIds = ScenarioContext.get("TRACKED_USER_IDS");
+            if (trackedIds != null && !trackedIds.isEmpty()) {
+                GoRestClient client = GoRestClient.getInstance();
+                for (Long id : trackedIds) {
+                    client.safeDeleteUser(id);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[Hooks] Warning during API teardown: " + e.getMessage());
+        } finally {
+            ScenarioContext.clear();
         }
     }
 

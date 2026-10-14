@@ -164,6 +164,7 @@
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
                     <testFailureIgnore>${testFailureIgnore}</testFailureIgnore>
+                    <argLine>-Dnet.bytebuddy.experimental=true</argLine>
                     <includes>
                         <include>**/CucumberTestRunner.java</include>
                         <include>**/*Test.java</include>
@@ -188,22 +189,12 @@
                 <executions>
                     <execution>
                         <id>serenity-reports</id>
-                        <phase>verify</phase>
+                        <phase>post-integration-test</phase>
                         <goals>
                             <goal>aggregate</goal>
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
-
-            <!-- Exec plugin for running Playwright CLI (install browsers, codegen, etc.) -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>${exec-maven-plugin.version}</version>
-                <configuration>
-                    <mainClass>com.microsoft.playwright.CLI</mainClass>
-                </configuration>
             </plugin>
         </plugins>
     </build>
