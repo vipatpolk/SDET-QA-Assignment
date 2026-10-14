@@ -115,7 +115,10 @@ This project contains comprehensive API test automation for the GoREST v2 Users 
 
 1. **Authentication Token**: GoREST requires a Bearer token for write operations (POST, PUT, DELETE).
 2. **Local Setup via `.env`**:
-   - Copy `.env.example` to `.env`:\n     ```bash\n     cp .env.example .env\n     ```
+   - Copy `.env.example` to `.env`:
+     ```bash
+     cp .env.example .env
+     ```
    - Populate `GOREST_API_TOKEN`:
      ```env
      GOREST_API_TOKEN=your_token_here
@@ -259,7 +262,7 @@ The repository includes CI/CD pipeline automation under `.github/workflows/`. As
 | :-: | :--- | :--- | :--- | :--- |
 | **1** | **Repository Checkout** | Missing `actions/checkout@v4` step completely. | Runner begins with an empty workspace; Maven fails immediately with `no POM in this directory`. | Added `actions/checkout@v4` as step 1 in all jobs. |
 | **2** | **Java Version** | Specified `java-version: '8'`. | Project requires Java 17 (`pom.xml`). Playwright 1.50, Serenity 4.2, and JUnit 5 fail bytecode compilation on Java 8. | Upgraded to `java-version: '21'` (`temurin`). |
-| **3** | **Playwright Dependencies** | No browser binaries or Linux shared libraries installed. | UI test runs on Ubuntu crash with `PlaywrightException: Host system is missing dependencies to run browsers`. | Added `./mvnw exec:java -Dexec.args="install --with-deps"`. |
+| **3** | **Playwright Dependencies** | No browser binaries or Linux shared libraries installed. | UI test runs on Ubuntu crash with `PlaywrightException: Host system is missing dependencies to run browsers`. | Added `./mvnw exec:java -e -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install --with-deps"` and configured `exec-maven-plugin` in `pom.xml`. |
 | **4** | **API Credentials** | `GOREST_API_TOKEN` secret not passed to job environment. | Mutating API requests fail with `HTTP 401 Unauthorized` or fail-fast `IllegalStateException`. | Injected `GOREST_API_TOKEN: ${{ secrets.GOREST_API_TOKEN }}` with validation step. |
 | **5** | **Failure Suppression** | `mvn clean test \|\| true` | Swallows errors and converts test failures into false greens, undermining the CI quality gate. | Removed `\|\| true` and enabled strict exit-code verification. |
 | **6** | **Test Scoping** | Both steps ran `mvn clean test` without `-Dcucumber.filter.tags`. | Full test suite ran redundantly twice (UI tests in API step and vice versa). | Added `-Dcucumber.filter.tags=@ui` and `-Dcucumber.filter.tags=@gorest`. |

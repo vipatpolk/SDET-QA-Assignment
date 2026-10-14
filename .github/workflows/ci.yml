@@ -37,7 +37,7 @@ jobs:
         run: chmod +x mvnw
 
       - name: Install Playwright Browsers & OS Dependencies
-        run: ./mvnw exec:java -Dexec.args="install --with-deps"
+        run: ./mvnw exec:java -e -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install --with-deps"
 
       - name: Execute UI Tests & Aggregate Serenity Report
         run: ./mvnw clean verify "-Dcucumber.filter.tags=@ui"

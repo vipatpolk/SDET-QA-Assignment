@@ -196,6 +196,16 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- Exec plugin for running Playwright CLI (install, codegen, trace viewer) -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>${exec-maven-plugin.version}</version>
+                <configuration>
+                    <mainClass>com.microsoft.playwright.CLI</mainClass>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>
