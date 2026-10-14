@@ -1,0 +1,1 @@
+Feature: Part 1: UI automation (Playwright and Java)

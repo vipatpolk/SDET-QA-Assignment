@@ -14,18 +14,22 @@
 
 ## 🚀 Quick Commands Cheatsheet
 
-Always use the Maven Wrapper (`.\mvnw.cmd` on Windows, `./mvnw` on macOS/Linux):
+### 🐳 Docker Compose (Zero Local Setup)
+| Task | Command |
+| :--- | :--- |
+| **Run All Tests** | `docker compose run --rm tests` |
+| **Filter by Tag** | `docker compose run --rm -e CUCUMBER_FILTER_TAGS="@smoke" tests` |
+| **Filter by Tag (CLI)** | `docker compose run --rm tests -Dcucumber.filter.tags="@smoke"` |
+| **Rebuild Container** | `docker compose build` |
 
+### 💻 Local Host Execution (Maven Wrapper)
 | Task | Windows (PowerShell) | Unix / macOS (Bash) |
 | :--- | :--- | :--- |
 | **Compile & Verify** | `.\mvnw.cmd test-compile` | `./mvnw test-compile` |
-| **Run All Tests** | `.\mvnw.cmd clean test` | `./mvnw clean test` |
+| **Run All Tests (Verify)** | `.\mvnw.cmd clean verify` | `./mvnw clean verify` |
 | **Run Cucumber BDD** | `.\mvnw.cmd test -Dtest=CucumberTestRunner` | `./mvnw test -Dtest=CucumberTestRunner` |
-| **Filter by Tag** | `.\mvnw.cmd test -Dtest=CucumberTestRunner "-Dcucumber.filter.tags=@smoke"` | `./mvnw test -Dtest=CucumberTestRunner -Dcucumber.filter.tags="@smoke"` |
-| **Run API Tests Only** | `.\mvnw.cmd test -Dtest=RestAssuredSampleTest` | `./mvnw test -Dtest=RestAssuredSampleTest` |
-| **Run UI Tests Only** | `.\mvnw.cmd test -Dtest=PlaywrightSampleTest` | `./mvnw test -Dtest=PlaywrightSampleTest` |
-| **Generate Allure Report** | `.\mvnw.cmd allure:report` | `./mvnw allure:report` |
-| **Serve Allure Report** | `.\mvnw.cmd allure:serve` | `./mvnw allure:serve` |
+| **Filter by Tag on Verify** | `.\mvnw.cmd verify "-Dcucumber.filter.tags=@smoke"` | `./mvnw verify -Dcucumber.filter.tags="@smoke"` |
+| **Aggregate Serenity Report** | `.\mvnw.cmd serenity:aggregate` | `./mvnw serenity:aggregate` |
 
 ---
 
@@ -33,8 +37,10 @@ Always use the Maven Wrapper (`.\mvnw.cmd` on Windows, `./mvnw` on macOS/Linux):
 
 1. **Start with Skills**: Read [`.agents/skills/cucumber-bdd-best-practices/SKILL.md`](.agents/skills/cucumber-bdd-best-practices/SKILL.md) before authoring BDD tests.
 2. **Strictly adhere to [`AGENTS.md`](AGENTS.md)** for:
+   - Zero-hardcoding URL policy via `ConfigurationManager`.
    - Playwright browser and thread lifecycle via `PlaywrightManager`.
-   - REST Assured HTTP payload logging with `AllureRestAssured`.
+   - REST Assured HTTP payload logging with `SerenityRest`.
    - Cucumber Gherkin formatting, `@ui` and `@api` tag requirements.
-   - Allure report generation.
+   - Serenity living documentation report generation (`target/site/serenity/index.html`).
+   - Docker execution compatibility.
 3. **Quality Gate**: Run `.\mvnw.cmd test-compile` and relevant test execution prior to completing user requests.

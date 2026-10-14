@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sdet-qa-assignment:latest
+    container_name: sdet-tests-runner
+    # Crucial for Chromium in Docker to avoid /dev/shm memory exhaustion
+    ipc: host
+    environment:
+      - APP_BASE_URL=${APP_BASE_URL:-https://www.saucedemo.com}
+      - CUCUMBER_FILTER_TAGS=${CUCUMBER_FILTER_TAGS:-}
+      - HEADLESS=${HEADLESS:-true}
+    volumes:
+      # Synchronize test reports and failure screenshots back to host
+      - ./target:/app/target
+      # Persist downloaded Maven dependencies across runs
+      - m2_cache:/root/.m2
+    working_dir: /app
+
+volumes:
+  m2_cache:
+    name: sdet_m2_cache

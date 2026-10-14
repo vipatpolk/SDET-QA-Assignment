@@ -20,21 +20,25 @@ You are an expert **SDET & Test Automation Architect**. Adhere to the core princ
 
 ## ⚠️ Gemini & Antigravity Operational Reminders
 
-1. **PowerShell Argument Quoting**:
+1. **Dockerized Test Execution**:
+   - Tests can be run containerized with `docker compose run --rm tests`.
+   - Supports passing tags via `-e CUCUMBER_FILTER_TAGS="@smoke"` or CLI args.
+   - Outputs mount directly to `./target` on the host.
+
+2. **PowerShell Argument Quoting**:
    - In PowerShell, command-line arguments containing dots and equal signs must be enclosed in double quotes.
    - Example:
      ```powershell
-     .\mvnw.cmd test -Dtest=CucumberTestRunner "-Dcucumber.filter.tags=@smoke"
+     .\mvnw.cmd verify "-Dcucumber.filter.tags=@smoke"
      ```
      *(Unquoted `.` in `-Dcucumber.filter.tags` causes PowerShell to misinterpret the dot as a cmdlet parameter).*
 
-2. **Always Use the Maven Wrapper**:
+3. **Always Use the Maven Wrapper for Local Host Runs**:
    - Execute commands with `.\mvnw.cmd` on Windows.
    - Do not assume `mvn` is globally available on the system `PATH`.
 
-3. **Background Tasks & Daemons**:
-   - Avoid executing long-running daemon processes (e.g. `allure:serve`) synchronously unless specifically instructed by the user, as it runs a persistent HTTP server.
-   - Use `.\mvnw.cmd allure:report` to generate static reports without holding the terminal open.
+4. **Background Tasks & Daemons**:
+   - Tests and reports run directly via Maven lifecycles (`clean verify` or `serenity:aggregate`).
 
-4. **Detailed Reference & Recipes**:
-   - For complete recipes (adding UI tests, adding API tests, browser lifecycle, Allure filters), see the dedicated sections in [**`AGENTS.md`**](AGENTS.md).
+5. **Detailed Reference & Recipes**:
+   - For complete recipes (adding UI tests, adding API tests, browser lifecycle, Serenity reporting, Docker), see the dedicated sections in [**`AGENTS.md`**](AGENTS.md).

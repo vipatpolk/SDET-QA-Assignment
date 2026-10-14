@@ -3,14 +3,12 @@ package com.atait.assignment.bdd.stepdefinitions;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
-import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
+import net.serenitybdd.rest.SerenityRest;
 
-import io.qameta.allure.restassured.AllureRestAssured;
-
-import static io.restassured.RestAssured.given;
+import static net.serenitybdd.rest.SerenityRest.given;
 import static org.hamcrest.Matchers.*;
 
 public class ApiStepDefinitions {
@@ -19,8 +17,8 @@ public class ApiStepDefinitions {
 
     @Given("the API base URI is {string}")
     public void setBaseUri(String baseUri) {
-        RestAssured.baseURI = baseUri;
-        request = given().filter(new AllureRestAssured()).contentType(ContentType.JSON);
+        SerenityRest.setDefaultBasePath("");
+        request = given().baseUri(baseUri).contentType(ContentType.JSON);
     }
 
     @When("I send a GET request to {string}")
