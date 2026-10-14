@@ -1,6 +1,85 @@
 # SDET-QA-Assignment
 
-Automation test framework featuring **Playwright Java** (UI testing), **REST Assured / Serenity REST** (API testing), and **Cucumber BDD** on **JUnit 5 Platform** with **Serenity BDD Living Documentation**, **Docker Compose**, and **Maven**.
+Automation test framework featuring **Playwright Java** (UI testing), **REST Assured / Serenity REST** (API testing), and **Cucumber BDD** on **JUnit 5 Platform** with **Serenity BDD Living Documentation**, **Docker Compose**, and **GitHub Actions CI/CD**.
+
+---
+
+## 📑 Table of Contents
+
+- [⚡ Exact Commands to Run Test Suites](#-exact-commands-to-run-test-suites)
+- [🛠️ Tech Stack & Prerequisites](#️-tech-stack--prerequisites)
+- [🏗️ Architectural Decisions & Technical Rationale](#️-architectural-decisions--technical-rationale)
+- [📁 Project Structure](#-project-structure)
+- [🎯 Test Scenarios Selected & Rationale (Why These Scenarios?)](#-test-scenarios-selected--rationale-why-these-scenarios)
+  - [UI Suite (SauceDemo — Part 0 & Part 1)](#ui-suite-saucedemo--part-0--part-1)
+  - [API Suite (GoREST — Part 2)](#api-suite-gorest--part-2)
+- [🔄 Part 3: CI/CD Pipeline Audit & Resolution (GitHub Actions)](#-part-3-cicd-pipeline-audit--resolution-github-actions)
+- [🤖 Part 4: AI-Assisted Workflow Notes](#-part-4-ai-assisted-workflow-notes)
+- [❓ Assumptions & Ambiguity Resolution](#-assumptions--ambiguity-resolution)
+- [🔮 Future Improvements (What Would Be Done Differently With More Time)](#-future-improvements-what-would-be-done-differently-with-more-time)
+- [🏃 Comprehensive Execution Guide](#-comprehensive-execution-guide)
+  - [Option A: Dockerized Execution (Zero Local Setup)](#option-a-dockerized-execution-zero-local-setup)
+  - [Option B: Local Host Execution (Maven Wrapper)](#option-b-local-host-execution-maven-wrapper)
+  - [Tag Filtering Reference](#tag-filtering-reference)
+- [📊 Test Reporting & Living Documentation](#-test-reporting--living-documentation)
+  - [Serenity BDD Living Documentation](#serenity-bdd-living-documentation)
+  - [Cucumber HTML & JSON Reports](#cucumber-html--json-reports)
+- [🧰 Playwright Developer Tools](#-playwright-developer-tools)
+
+---
+
+## ⚡ Exact Commands to Run Test Suites
+
+### 1. Run the UI Test Suite (Playwright + Cucumber)
+
+- **Docker (Recommended — Zero Local Setup)**:
+  ```bash
+  docker compose run --rm -e CUCUMBER_FILTER_TAGS="@ui" tests
+  ```
+- **Windows (PowerShell with Maven Wrapper)**:
+  ```powershell
+  .\mvnw.cmd clean verify "-Dcucumber.filter.tags=@ui"
+  ```
+- **macOS / Linux (Bash with Maven Wrapper)**:
+  ```bash
+  ./mvnw clean verify -Dcucumber.filter.tags="@ui"
+  ```
+
+---
+
+### 2. Run the API Test Suite (REST Assured / Serenity REST)
+
+> **Prerequisite**: Provide your GoREST API Token in `.env` (`GOREST_API_TOKEN=your_token_here`) or via environment variable.
+
+- **Docker (Recommended — Zero Local Setup)**:
+  ```bash
+  docker compose run --rm -e CUCUMBER_FILTER_TAGS="@gorest" tests
+  ```
+- **Windows (PowerShell with Maven Wrapper)**:
+  ```powershell
+  .\mvnw.cmd clean verify "-Dcucumber.filter.tags=@gorest"
+  ```
+- **macOS / Linux (Bash with Maven Wrapper)**:
+  ```bash
+  ./mvnw clean verify -Dcucumber.filter.tags="@gorest"
+  ```
+
+---
+
+### 3. Run the Entire Test Suite (UI + API Combined)
+
+- **Docker**:
+  ```bash
+  docker compose run --rm tests
+  ```
+- **Windows (PowerShell)**:
+  ```powershell
+  .\mvnw.cmd clean verify
+  ```
+- **macOS / Linux (Bash)**:
+  ```bash
+  ./mvnw clean verify
+  ```
 
 ---
 
@@ -19,6 +98,21 @@ Automation test framework featuring **Playwright Java** (UI testing), **REST Ass
   - [Jackson Databind](https://github.com/FasterXML/jackson) — Strongly-typed JSON serialization & deserialization (POJOs)
   - [Hamcrest](http://hamcrest.org/) — Flexible matchers for API assertions
   - [JUnit 5 Jupiter / Platform](https://junit.org/junit5/) — Modern test runner and suite execution
+
+---
+
+## 🏗️ Architectural Decisions & Technical Rationale
+
+| Decision | Selection | Reasoning & Technical Benefits |
+| :--- | :--- | :--- |
+| **UI Automation Tool** | **Playwright for Java** | Selected over Selenium WebDriver due to **native auto-waiting** (eliminates brittle explicit/implicit wait anti-patterns), significantly faster execution speed via the Chrome DevTools Protocol (CDP), isolated browser contexts, built-in network inspection, and first-class developer tooling (`codegen`, `show-trace`). |
+| **BDD & Living Documentation** | **Cucumber JVM 7 + Serenity BDD 4** | Cucumber provides domain-level, business-readable specifications (Gherkin) that align engineering, QA, and product stakeholders. Serenity BDD wraps Cucumber and REST Assured into an interactive, visual "Living Documentation" report detailing steps, screenshots on failure, and full HTTP request/response payloads without custom reporting boilerplate. |
+| **Test Runner Engine** | **JUnit 5 Platform Suite (`@Suite`)** | JUnit 5 is the modern Java test platform offering modular architecture, native configuration parameters, dynamic test execution, and robust compatibility with Maven Surefire/Failsafe and CI environments. |
+| **Thread-Safe Driver Architecture** | **ThreadLocal `PlaywrightManager`** | Encapsulates `Playwright`, `Browser`, and `Page` instances in `ThreadLocal` variables. Guarantees complete session isolation when running concurrent tests, prevents cross-thread state pollution, and ensures deterministic teardown in `@After` hooks. |
+| **API Client Architecture** | **SerenityRest + POJOs (Jackson)** | Rather than unstructured string parsing or generic `Map<String, Object>` payloads, the framework uses strongly-typed POJOs (`UserRequest`, `UserResponse`, `ValidationErrorItem`, `ApiErrorResponse`). This enforces compile-time schema validation, prevents typo bugs in JSON fields, and simplifies assertion authoring. |
+| **Live API State Safety** | **Build up > Test > Tear down Pattern** | The GoREST API is a public shared sandbox subject to outside modification. Rather than relying on fragile pre-existing static records, every mutating scenario provisions a dynamically generated unique user (`GoRestTestDataGenerator`), executes assertions, and guarantees teardown via ScenarioContext tracking in `@After("@api or @gorest")`. |
+| **Rate Limit Resilience** | **Exponential Backoff Retry in `GoRestClient`** | GoREST rate limits public requests (HTTP `429 Too Many Requests`). `GoRestClient` intercepts `429` responses and automatically applies exponential backoff delays with jitter before failing, drastically reducing test flakiness on shared endpoints. |
+| **Configuration Hierarchy** | **`ConfigurationManager` (Layered Resolution)** | Environment settings follow a disciplined priority chain: **System Properties (`-D`)** > **OS Environment Variables** > **`.env` file** > **`config.properties` defaults**. Sensitive tokens (`GOREST_API_TOKEN`) are never hardcoded and fail fast if missing for write operations. |
 
 ---
 
@@ -107,154 +201,67 @@ SDET-QA-Assignment/
 
 ---
 
-## 🚀 REST API Testing (GoREST Users API)
+## 🎯 Test Scenarios Selected & Rationale (Why These Scenarios?)
 
-This project contains comprehensive API test automation for the GoREST v2 Users API (`https://gorest.co.in/public/v2/users`) authored in [`Part_2_Java_and_REST_Assured_project.feature`](src/test/resources/features/api-tests/Part_2_Java_and_REST_Assured_project.feature).
+### UI Suite (SauceDemo — Part 0 & Part 1)
 
-### 🔑 Authentication & Environment Setup
+Detailed scenario mapping is defined in [`Part_0_scenario_list.md`](src/test/resources/features/test-coverage/Part_0_scenario_list.md) and automated in [`Part_1_Playwright_for_Java_project.feature`](src/test/resources/features/ui-tests/Part_1_Playwright_for_Java_project.feature). 
 
-1. **Authentication Token**: GoREST requires a Bearer token for write operations (POST, PUT, DELETE).
-2. **Local Setup via `.env`**:
-   - Copy `.env.example` to `.env`:
-     ```bash
-     cp .env.example .env
-     ```
-   - Populate `GOREST_API_TOKEN`:
-     ```env
-     GOREST_API_TOKEN=your_token_here
-     ```
-   - `.env` is automatically ignored in Git by [`.gitignore`](.gitignore).
-3. **Environment Variable Override**:
-   Alternatively, set the system environment variable:
-   - **Windows (PowerShell)**: `$env:GOREST_API_TOKEN="your_token_here"`
-   - **macOS / Linux**: `export GOREST_API_TOKEN="your_token_here"`
-4. **Fail-Fast Protection**: If the token is missing during write operations, `ConfigurationManager` fails immediately with an informative exception rather than silently skipping tests.
+#### 1. Why Test Across 4 Diverse Personas?
+Most UI test suites only exercise `standard_user`. Testing SauceDemo thoroughly requires verifying real-world defect and degradation modes:
+- **`standard_user`**: Verifies the baseline golden shopping flow from login to checkout completion.
+- **`locked_out_user`**: Verifies security boundary enforcement; user must be rejected with explicit error banner and forbidden from accessing protected inventory pages.
+- **`problem_user`**: Verifies system resilience when encountering known client-side defects (broken product image assets, item link misrouting to ID 5, and blocked checkout input).
+- **`performance_glitch_user`**: Tests framework wait mechanisms under real simulated 5000ms network/rendering latency, proving tests do not fail with premature timeouts.
 
-### 🛡️ Test Safety & Lifecycle Management (Build up > Test > Tear down)
-- **Live Service Discipline**: GoREST is a public shared live service. Tests **never mutate or delete unowned records**.
-- **Collision Avoidance**: [`GoRestTestDataGenerator`](src/test/java/com/atait/assignment/api/utils/GoRestTestDataGenerator.java) creates uniquely timestamped and randomized test users.
-- **Guaranteed Cleanup**: Every test records created user IDs in [`ScenarioContext`](src/main/java/com/atait/assignment/context/ScenarioContext.java). The Cucumber hook `@After("@api or @gorest")` in [`Hooks.java`](src/test/java/com/atait/assignment/bdd/hooks/Hooks.java) automatically deletes all test-created users, even if an assertion fails midway.
-- **Rate Limit Resilience**: [`GoRestClient`](src/test/java/com/atait/assignment/api/client/GoRestClient.java) implements exponential backoff retry when receiving HTTP `429 Too Many Requests`.
+#### 2. Why Authentication & Route Defense?
+- Validates missing credentials (blank username, blank password) and invalid credentials.
+- Validates unauthenticated direct URL navigation (e.g. browsing directly to `/inventory.html`, `/cart.html`, or `/checkout-step-one.html` without logging in). Ensures route guards redirect to `/` with an informative error.
 
-### 🧪 Executing the API Test Suite
+#### 3. Why Product Catalog Sorting & Item Detail Fidelity?
+- Sorting (A-Z, Z-A, Price Low-to-High, Price High-to-Low) exercises DOM mutation and data-order integrity.
+- Verifies that navigating from catalog to an item's detail page preserves title, description, and price without data truncation.
 
-- **Run GoREST API tests via Maven Wrapper (Windows)**:
-  ```powershell
-  .\mvnw.cmd test "-Dcucumber.filter.tags=@gorest"
-  ```
-- **Run GoREST API tests via Maven Wrapper (macOS / Linux)**:
-  ```bash
-  ./mvnw test -Dcucumber.filter.tags="@gorest"
-  ```
-- **Run GoREST API tests in Docker**:
-  ```bash
-  docker compose run --rm -e CUCUMBER_FILTER_TAGS="@gorest" tests
-  ```
+#### 4. Why Cart Badge State Dynamics & Reset App State?
+- Boundary check on badge dynamics: incrementing counter on add, decrementing on remove, and verifying the badge element is completely removed from DOM when 0 items remain (instead of showing `0`).
+- Validates cross-page state persistence and the "Reset App State" sidebar drawer action.
+
+#### 5. Why End-to-End Checkout Boundaries & Calculation Math?
+- Step One boundary testing: enforces required field errors (First Name required, Last Name required, Postal Code required).
+- Step Two financial calculation: explicitly calculates and validates `Item Total + Tax = Total Amount` to prevent billing discrepancies.
 
 ---
 
-## 🐳 Dockerized Execution (Zero Local Java / Maven Setup)
+### API Suite (GoREST — Part 2)
 
-You can run the entire test automation suite without installing Java, Maven, or browser dependencies on your host machine.
+Automated in [`Part_2_Java_and_REST_Assured_project.feature`](src/test/resources/features/api-tests/Part_2_Java_and_REST_Assured_project.feature).
 
-### 1. Run Full Test Suite in Docker
-```bash
-docker compose run --rm tests
-```
+#### 1. Why Schema Contract & SLA Response Time?
+- Contract verification ensures JSON attributes match expected data types (`id` is integer, `name` is string, `email` is valid format, `gender` in `[male, female]`, `status` in `[active, inactive]`).
+- Response time SLA assertion (`< 2500ms`) catches latency spikes and upstream regressions early.
 
-### 2. Filter Scenarios by Cucumber Tag in Docker
-```bash
-# Run UI Smoke tests
-docker compose run --rm -e CUCUMBER_FILTER_TAGS="@smoke and @ui" tests
+#### 2. Why Full Lifecycle (CRUD) Isolation?
+- Covers all HTTP methods: `POST` (create), `GET` (retrieve), `PUT` (full replacement), `PATCH` (partial update), `DELETE` (removal).
+- Guarantees zero residual test pollution on public shared GoREST endpoints.
 
-# Run GoREST API tests
-docker compose run --rm -e CUCUMBER_FILTER_TAGS="@gorest" tests
-```
+#### 3. Why Negative & Boundary Permutations?
+- Validates data validation error models (`422 Unprocessable Entity`):
+  - Missing mandatory fields.
+  - Invalid email formats (missing `@`, missing domain).
+  - Invalid enum values for `gender` and `status`.
+  - Duplicate email collision rejection.
+- Validates resource not found (`404 Not Found`) when requesting non-existent IDs.
 
-### 3. Clean Build & Cached Dependencies
-```bash
-# Rebuild the Docker image
-docker compose build
-
-# Clear Maven cache volume
-docker compose down -v
-```
+#### 4. Why Authentication Boundary Validation?
+- Exercises security defense: verifies that mutating requests (`POST`, `PUT`, `DELETE`) without an Authorization header fail immediately with `401 Unauthorized`.
 
 ---
 
-## 🚀 Local Host Execution (Alternative)
+## 🔄 Part 3: CI/CD Pipeline Audit & Resolution (GitHub Actions)
 
-### 1. Download / Install Browsers (For UI Tests)
+As part of Part 3 of the assignment, the broken starter workflow ([`.github/workflows/ci-broken.yml`](.github/workflows/ci-broken.yml)) was thoroughly audited, corrected, and implemented as a production-ready pipeline in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
-Playwright downloads required browsers (Chromium, Firefox, WebKit) automatically on the first test run, or you can explicitly install them using the Playwright CLI:
-
-**On Windows:**
-```bash
-.\mvnw.cmd exec:java -Dexec.args="install"
-```
-
-**On macOS / Linux:**
-```bash
-./mvnw exec:java -Dexec.args="install"
-```
-
----
-
-### 2. Run Tests & Generate Reports
-
-#### Full Test Suite on Maven `verify` Lifecycle
-The Maven `verify` lifecycle automatically compiles the project, runs tests via `CucumberTestRunner`, and aggregates the Serenity living documentation:
-
-- **Run all tests and generate Serenity report**:
-  - Windows: `.\mvnw.cmd clean verify`
-  - Unix: `./mvnw clean verify`
-
-- **Filter by Tag on `verify` (e.g. `@gorest` or `@smoke`)**:
-  - Windows (PowerShell): `.\mvnw.cmd verify "-Dcucumber.filter.tags=@gorest"`
-  - Unix (Bash): `./mvnw verify -Dcucumber.filter.tags="@gorest"`
-
----
-
-### 📊 Serenity BDD Living Documentation
-
-#### Serenity BDD Living Documentation (Recommended)
-All test runs (JUnit 5, Cucumber BDD, and SerenityRest API calls) automatically output results into `target/site/serenity/`.
-
-- **Report location**: `target/site/serenity/index.html`
-- **Manually re-aggregate report**:
-  ```bash
-  .\mvnw.cmd serenity:aggregate
-  ```
-- **Open report in default browser (Windows PowerShell)**:
-  ```powershell
-  Start-Process target/site/serenity/index.html
-  ```
-
-#### Cucumber HTML Report
-- **HTML Report**: `target/cucumber-reports/cucumber.html`
-- **JSON Report**: `target/cucumber-reports/cucumber.json`
-
----
-
-### 3. Playwright Tools & CLI Utilities
-
-#### Code Generator (Playwright Codegen)
-Record user actions and generate test code interactively:
-```bash
-.\mvnw.cmd exec:java -Dexec.args="codegen https://www.saucedemo.com"
-```
-
-#### Trace Viewer
-Inspect Playwright trace files:
-```bash
-.\mvnw.cmd exec:java -Dexec.args="show-trace trace.zip"
-```
-
----
-
-## 🔄 CI/CD Pipeline (GitHub Actions — Part 3)
-
-The repository includes CI/CD pipeline automation under `.github/workflows/`. As part of Part 3 of the assignment, the broken starter workflow ([`.github/workflows/ci-broken.yml`](.github/workflows/ci-broken.yml)) was thoroughly audited, corrected, and implemented as a production-ready pipeline in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+- **Example Pipeline Run**: https://github.com/vipatpolk/SDET-QA-Assignment/actions/runs/38588835577
 
 ### 🔍 Issues Found in `ci-broken.yml` & Their Resolutions
 
@@ -272,8 +279,6 @@ The repository includes CI/CD pipeline automation under `.github/workflows/`. As
 | **10** | **Dependency Caching** | No Maven dependency cache. | Re-downloaded all dependencies from Maven Central on every push/PR run. | Configured `cache: 'maven'` in `actions/setup-java`. |
 | **11** | **Maven Wrapper Portability**| Used host `mvn`. | Execution depended on runner-installed Maven version, risking discrepancies. | Standardized on `./mvnw` with `chmod +x mvnw`. |
 | **12** | **Timeout & Dispatch** | Missing timeouts and manual triggers. | Jobs could hang indefinitely (up to 6 hrs); cannot run ad-hoc tests from GitHub UI. | Set `timeout-minutes` and added `workflow_dispatch` with custom tag input. |
-
----
 
 ### ⚙️ Production CI Pipeline Architecture (`.github/workflows/ci.yml`)
 
@@ -304,10 +309,165 @@ flowchart TD
 ```
 
 ### 🔐 Configuring GitHub Actions Secrets
-
 To run authenticated API tests in GitHub Actions:
 1. Navigate to **Repository Settings** ➔ **Secrets and variables** ➔ **Actions**.
 2. Click **New repository secret**.
 3. Set **Name**: `GOREST_API_TOKEN`.
 4. Set **Value**: Your GoREST Bearer Token (obtainable from [gorest.co.in](https://gorest.co.in/)).
 5. Click **Add secret**.
+
+---
+
+## 🤖 Part 4: AI-Assisted Workflow Notes
+
+I start this assignment by deciding which tech stacks to use and defining a project structure. Then an AI tool comes in; the one I use is Gemini 3.8 Flash integrated with the IDE (I’ve used IntelliJ).
+
+Before starting development, I provide it sufficient skills such as BDD and API testing best practices. And I give it a strict workflow, telling it to always read the guide and skills before starting.
+
+In the development part, I act like a Product Owner and provide test scenarios and requirements, letting the AI plan the implementation.
+
+Once I get a plan, I review it, make appropriate adjustments, then start development. The coding part is done by AI.
+
+However, there are some risky cases where code is done by AI. For example, the AI sometimes does not think about reusable or dynamic coding.
+
+Hardcoded code or code that only runs in a specific scenario can be produced. But this can be prevented or reduced by giving it golden rules within the guide.
+
+AI also helps me analyze existing logic errors, since detecting issues caused by someone else is somewhat challenging.
+
+One thing I deliberately do not delegate to AI is Git branch management, especially merging actions, because it is easy to make mistakes and when they happen it is hard to resolve them.
+
+---
+
+## ❓ Assumptions & Ambiguity Resolution
+
+During test analysis and automation, several undocumented behaviors and edge cases were identified. Below are the assumptions and engineering decisions applied:
+
+| # | Ambiguous Area | Observed Behavior / Ambiguity | Assumption & Decision Applied |
+| :-: | :--- | :--- | :--- |
+| **1** | **Empty Cart Checkout ($0.00)** | SauceDemo allows advancing through checkout and placing an order with 0 items for $0.00 without any warning or validation block. | **Assumption**: In a real e-commerce platform, this is an omission. For this assignment, the framework documents this behavior in Part 0 (`TC-08`), asserting the actual application state without masking it, while flagging it for product clarification. |
+| **2** | **Account Lockout Duration** | SauceDemo displays `Epic sadface: Sorry, this user has been locked out.` but does not specify lockout timeout or cooldown. | **Assumption**: Lockout is treated as permanent for `locked_out_user`. No cooldown timers or unlock attempts are triggered. |
+| **3** | **Error Prefix Inconsistency** | Login page errors prefix with `Epic sadface:`, whereas Checkout Step One form errors prefix with `Error:`. | **Assumption**: Validated each error string against its actual page-specific convention rather than assuming a universal global prefix. |
+| **4** | **Input Lengths & Postal Code Format** | Checkout input fields have no HTML `maxlength` attributes or postal code regex validation (accepting arbitrary strings and injection probe characters). | **Assumption**: The framework exercises international postal formats (`SW1A 1AA`, `90210-1234`) and verifies non-ASCII strings (`José-María`) are sanitized and do not trigger application 500 errors. |
+| **5** | **`problem_user` Intentional Defects** | `problem_user` has intentional broken links, corrupted images, and blocks typing into "Last Name". | **Assumption**: Automated tests assert these specific defect states explicitly to verify defect-detection fidelity rather than letting them fail as unhandled test errors. |
+| **6** | **GoREST Shared Environment Volatility** | GoREST public records are subject to unexpected edits, deletions, or external rate limiting (429). | **Assumption**: Tests never depend on persistent records or static IDs. Every test dynamically provisions its own user, tracks the ID in `ScenarioContext`, and cleans it up via `@After` hooks. |
+| **7** | **Error Prefix Emoji Normalization** | SauceDemo prefixes login errors with `Epic sadface:` (`Epic sadface: Username is required`). | **Assumption**: In Gherkin feature scenarios ([`Part_1_Playwright_for_Java_project.feature`](src/test/resources/features/ui-tests/Part_1_Playwright_for_Java_project.feature)), `Epic sadface` is normalized to the `☹️` emoji prefix (`☹️: Username is required`, `☹️: Sorry, this user has been locked out.`). Step definitions bidirectionally accept both `☹️` and `Epic sadface` for clean BDD reporting. |
+| **8** | **Product Brand Normalization** | The red shirt on SauceDemo is named `Test.allTheThings() T-Shirt (Red)`. | **Assumption**: Mapped and normalized to `'Sauce Labs'` (`☹Sauce Labs T-Shirt (Red)`) across catalog feature outlines to ensure uniform branding consistency across all inventory items. |
+| **9** | **Product Description Normalization** | The Sauce Labs Backpack description begins with `carry.allTheThings() with the sleek...`. | **Assumption**: In customer-facing BDD scenarios, the programmatic camelCase phrase `carry.allTheThings()` is normalized to title case `'Carry All The Things'` for clean readability. |
+
+---
+
+## 🔮 Future Improvements (What Would Be Done Differently With More Time)
+
+If allocated additional development time, the following enhancements would be added to elevate the test suite:
+
+1. **Visual Regression Testing**:
+   - Integrate Playwright's pixel-by-pixel screenshot comparison (`expect(page).toHaveScreenshot()`) to detect subtle layout shifts, broken CSS, and corrupted assets (such as the `problem_user` dog avatars) across various responsive viewports.
+2. **Multi-Browser & Cross-Device Execution Matrix**:
+   - Extend GitHub Actions to run a parallel matrix across **Chromium**, **Firefox**, and **WebKit** (Safari engine), along with mobile emulated viewports (Pixel 7, iPhone 15).
+3. **API Mocking & Fault Injection (WireMock / MockServer)**:
+   - Introduce a local WireMock container to simulate downstream service failures, high HTTP latency, 502/503 bad gateway conditions, and verify client retry logic deterministically without relying on GoREST's live uptime.
+4. **Contract Testing with Pact**:
+   - Implement consumer-driven contract tests using [Pact](https://docs.pact.io/) to catch API schema breakages before deployments reach staging.
+5. **Performance / Load Testing Integration**:
+   - Add automated performance test stages using **k6** or **Gatling** to benchmark response time SLAs under high concurrency against critical endpoints.
+6. **Allure Reporting Integration**:
+   - Supplement Serenity Living Documentation with Allure reports and historical trend dashboards for long-term flaky test detection and test run analytics.
+
+---
+
+## 🏃 Comprehensive Execution Guide
+
+### Option A: Dockerized Execution (Zero Local Setup)
+
+You can run the entire test automation suite without installing Java, Maven, or browser dependencies on your host machine.
+
+#### 1. Run Full Test Suite in Docker
+```bash
+docker compose run --rm tests
+```
+
+#### 2. Filter Scenarios by Cucumber Tag in Docker
+```bash
+# Run UI Smoke tests
+docker compose run --rm -e CUCUMBER_FILTER_TAGS="@smoke and @ui" tests
+
+# Run GoREST API tests
+docker compose run --rm -e CUCUMBER_FILTER_TAGS="@gorest" tests
+```
+
+#### 3. Rebuild or Clear Cached Dependencies
+```bash
+# Rebuild the Docker image
+docker compose build
+
+# Clear Maven cache volume
+docker compose down -v
+```
+
+---
+
+### Option B: Local Host Execution (Maven Wrapper)
+
+#### 1. Download / Install Browsers (One-time setup for UI tests)
+Playwright downloads required browsers automatically on the first run, or you can install them explicitly:
+- **Windows**: `.\mvnw.cmd exec:java -Dexec.args="install"`
+- **macOS / Linux**: `./mvnw exec:java -Dexec.args="install"`
+
+#### 2. Run Tests via Maven Verify
+The Maven `verify` lifecycle compiles the project, runs tests via `CucumberTestRunner`, and aggregates Serenity living documentation:
+
+- **Run all tests and aggregate reports**:
+  - Windows: `.\mvnw.cmd clean verify`
+  - macOS / Linux: `./mvnw clean verify`
+
+---
+
+### Tag Filtering Reference
+
+Execute specific subsets of tests using `-Dcucumber.filter.tags`:
+
+| Target Test Suite | Windows (PowerShell) | macOS / Linux (Bash) |
+| :--- | :--- | :--- |
+| **All UI Tests** | `.\mvnw.cmd verify "-Dcucumber.filter.tags=@ui"` | `./mvnw verify -Dcucumber.filter.tags="@ui"` |
+| **All API Tests** | `.\mvnw.cmd verify "-Dcucumber.filter.tags=@gorest"` | `./mvnw verify -Dcucumber.filter.tags="@gorest"` |
+| **Smoke Suite (UI & API)** | `.\mvnw.cmd verify "-Dcucumber.filter.tags=@smoke"` | `./mvnw verify -Dcucumber.filter.tags="@smoke"` |
+| **Auth Scenarios** | `.\mvnw.cmd verify "-Dcucumber.filter.tags=@auth"` | `./mvnw verify -Dcucumber.filter.tags="@auth"` |
+| **Regression Suite** | `.\mvnw.cmd verify "-Dcucumber.filter.tags=@regression"` | `./mvnw verify -Dcucumber.filter.tags="@regression"` |
+
+---
+
+## 📊 Test Reporting & Living Documentation
+
+### Serenity BDD Living Documentation
+
+All test runs (JUnit 5, Cucumber BDD, and SerenityRest API calls) automatically output rich living documentation into `target/site/serenity/`.
+
+- **HTML Report Location**: `target/site/serenity/index.html`
+- **Manually re-aggregate reports**:
+  ```bash
+  .\mvnw.cmd serenity:aggregate
+  ```
+- **Open report in default browser (Windows PowerShell)**:
+  ```powershell
+  Start-Process target/site/serenity/index.html
+  ```
+
+### Cucumber HTML & JSON Reports
+- **Cucumber HTML Report**: `target/cucumber-reports/cucumber.html`
+- **Cucumber JSON Report**: `target/cucumber-reports/cucumber.json`
+
+---
+
+## 🧰 Playwright Developer Tools
+
+### Code Generator (Playwright Codegen)
+Record user actions and generate test locators interactively:
+```bash
+.\mvnw.cmd exec:java -Dexec.args="codegen https://www.saucedemo.com"
+```
+
+### Trace Viewer
+Inspect execution traces, DOM snapshots, network requests, and action timelines:
+```bash
+.\mvnw.cmd exec:java -Dexec.args="show-trace trace.zip"
+```
